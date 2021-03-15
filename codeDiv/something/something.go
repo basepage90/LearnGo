@@ -3,9 +3,9 @@ package something
 import "fmt"
 
 func sayBye() {
-	fmt.Print("bye!")
+	fmt.Println("bye!")
 }
 
 func SayHello() {
-	fmt.Print("hello~")
+	fmt.Println("hello~")
 }
