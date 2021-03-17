@@ -23,3 +23,7 @@
 ### 06. array and slices
 ### 07. map
 ### 08. struct
+
+## mini project : bank (2021-03-17)
+
+### constructor / method / exception
