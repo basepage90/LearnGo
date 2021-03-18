@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/woojebiz/learngo/accounts"
+	"github.com/woojebiz/learngo/mydict"
 )
 
 // day1 "github.com/woojebiz/learngo/codeDiv"
@@ -22,6 +23,8 @@ func main() {
 	/*******************************************************************************************/
 	/*********************************** mini project : bank ***********************************/
 	/*******************************************************************************************/
+
+	fmt.Println("*********************************** mini project : bank ***********************************")
 
 	/******* bank 01 ***************************************************************************
 	 * struct와 variable 의 public/private 한 사용
@@ -57,4 +60,68 @@ func main() {
 	}
 
 	fmt.Println(account.Balance())
+
+	/*******************************************************************************************/
+	/********************************* mini project : dictionary *******************************/
+	/*******************************************************************************************/
+
+	fmt.Println("********************************* mini project : dictionary *******************************")
+
+	dictionary := mydict.Dictionary{"first": "firstWord"}
+
+	word := "secound"
+	def := "secoundWord"
+
+	fmt.Println("-- Add")
+
+	err1 := dictionary.Add(word, def)
+
+	if err1 != nil {
+		fmt.Println(err1)
+	}
+
+	fmt.Println("-- Search")
+	// definition, err2 := dictionary.Search("first")
+	definition, err2 := dictionary.Search("secound")
+	// definition, err2 := dictionary.Search("third")
+
+	if err2 != nil {
+		fmt.Println(err2)
+	} else {
+		fmt.Println(definition)
+	}
+
+	fmt.Println("-- Update")
+	err3 := dictionary.Update("secound", "New SecoundWord")
+
+	if err3 != nil {
+		fmt.Println(err3)
+	}
+
+	fmt.Println("-- Search")
+	definition, err2 = dictionary.Search("secound")
+
+	if err2 != nil {
+		fmt.Println(err2)
+	} else {
+		fmt.Println(definition)
+	}
+
+	fmt.Println("-- Delete")
+
+	err4 := dictionary.Delete("secound")
+
+	if err4 != nil {
+		fmt.Println(err4)
+	}
+
+	fmt.Println("-- Search")
+	definition, err2 = dictionary.Search("secound")
+
+	if err2 != nil {
+		fmt.Println(err2)
+	} else {
+		fmt.Println(definition)
+	}
+
 }

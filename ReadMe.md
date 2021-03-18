@@ -24,6 +24,10 @@
 ### 07. map
 ### 08. struct
 
-## mini project : bank (2021-03-17)
+## mini project : bank (2021.03.17)
 
 ### constructor / method / exception
+
+## miniproject : dictionary (2021.03.18)
+
+### map 활용 (method) / exception 심화 
