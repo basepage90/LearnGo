@@ -30,4 +30,8 @@
 
 ## miniproject : dictionary (2021.03.18)
 
-### map 활용 (method) / exception 심화 
+### map 활용 (method) / exception 심화 \
+
+## URLChecker
+
+### simple URLChecker

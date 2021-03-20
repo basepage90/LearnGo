@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/woojebiz/learngo/accounts"
 	"github.com/woojebiz/learngo/mydict"
@@ -11,7 +13,55 @@ import (
 // day2 "github.com/woojebiz/learngo/codeDiv"
 // day3 "github.com/woojebiz/learngo/codeDiv"
 
+var errorRequestFailed = errors.New("Request failed")
+var errorNoneResp = errors.New("None Response")
+
 func main() {
+
+	var results = make(map[string]string)
+
+	urls := []string{
+		"https://www.google.com",
+		"https://www.naver.com",
+		"https://www.amazon.com",
+		"https://www.stackoverflow.com",
+		"http://hiphople.co.kr",
+		"https://www.soundcloud.com",
+		"https://httpstat.us/404",
+		"https://httpstat.us/400",
+	}
+
+	for _, url := range urls {
+
+		result := "OK"
+		err, resp := hitURL(url)
+
+		if err != nil {
+			result = "FAILED :" + err.Error() + "RESPONSE :" + resp
+		}
+		results[url] = result
+	}
+
+	for url, result := range results {
+		fmt.Println(url, result)
+	}
+
+}
+
+func hitURL(url string) (error, string) {
+	fmt.Println("Checking :", url)
+
+	resp, err := http.Get(url)
+
+	if resp == nil {
+		return errorNoneResp, ""
+	} else if err != nil || resp.StatusCode >= 400 {
+		return errorRequestFailed, resp.Status
+	}
+	return nil, ""
+}
+
+func main_asis() {
 
 	/*******************************************************************************************/
 	/***********************************       Theory        ***********************************/
@@ -116,7 +166,7 @@ func main() {
 	}
 
 	fmt.Println("-- Search")
-	definition, err2 = dictionary.Search("secound")
+	definition, err2 = dictionary.Search("secoucnd")
 
 	if err2 != nil {
 		fmt.Println(err2)
