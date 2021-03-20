@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/woojebiz/learngo/accounts"
 	"github.com/woojebiz/learngo/mydict"
@@ -16,9 +17,17 @@ import (
 var errorRequestFailed = errors.New("Request failed")
 var errorNoneResp = errors.New("None Response")
 
+type reqResult struct {
+	url    string
+	status string
+}
+
 func main() {
 
-	var results = make(map[string]string)
+	startTime := time.Now()
+
+	results := make(map[string]string)
+	c := make(chan reqResult)
 
 	urls := []string{
 		"https://www.google.com",
@@ -29,36 +38,52 @@ func main() {
 		"https://www.soundcloud.com",
 		"https://httpstat.us/404",
 		"https://httpstat.us/400",
+		"https://instagram.com",
+		"https://www.twitch.tv",
 	}
 
+	// goroutine : go에서 사용하는 동시성을위한 동작으로 Thread 와는 다르다
+	// 			   OS가아닌 Go runtime에서 cooperative scheduling하므로로, overhead나  context swtiching이 Thread에 비해서 적다.
+	// goroutine 은 main이 종료되기전까지만 살아있을 수 있다.
 	for _, url := range urls {
-
-		result := "OK"
-		err, resp := hitURL(url)
-
-		if err != nil {
-			result = "FAILED :" + err.Error() + "RESPONSE :" + resp
-		}
-		results[url] = result
+		go hitURL(url, c)
 	}
 
-	for url, result := range results {
-		fmt.Println(url, result)
+	// channel : 일종의 pipe
+	// result <- c  : channel 값을 다 받아오기전에는 main이 종료 되지않는다.
+	// channel 의 갯수가  초과해서는 안된다
+	for range urls {
+		result := <-c
+		results[result.url] = result.status
 	}
+
+	// map 출력
+	for url, status := range results {
+		fmt.Println(url, status)
+	}
+
+	elapsed := time.Since(startTime)
+	fmt.Println("elapsed", elapsed)
 
 }
 
-func hitURL(url string) (error, string) {
-	fmt.Println("Checking :", url)
-
+// channel send only
+// input variable의 chan 에 direction을 지정해주면, 채널 전달 방향을 지정할 수 있다.
+//  ex : func pingpong(ping <-chan stirng, pong chan<- string) {
+//			msg := <- ping
+//			pong <- msg
+//       }
+func hitURL(url string, c chan reqResult) {
+	fmt.Println("Checking URL : ", url)
 	resp, err := http.Get(url)
-
+	status := "OK"
 	if resp == nil {
-		return errorNoneResp, ""
+		status = "FAILED : " + "None Response"
 	} else if err != nil || resp.StatusCode >= 400 {
-		return errorRequestFailed, resp.Status
+		status = "FAILED : " + resp.Status
 	}
-	return nil, ""
+
+	c <- reqResult{url: url, status: status}
 }
 
 func main_asis() {
