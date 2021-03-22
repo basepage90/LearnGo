@@ -1,202 +1,147 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"encoding/csv"
+	"log"
 	"net/http"
-	"time"
+	"os"
+	"strconv"
+	"strings"
 
-	"github.com/woojebiz/learngo/accounts"
-	"github.com/woojebiz/learngo/mydict"
+	"github.com/PuerkitoBio/goquery"
 )
 
-// day1 "github.com/woojebiz/learngo/codeDiv"
-// day2 "github.com/woojebiz/learngo/codeDiv"
-// day3 "github.com/woojebiz/learngo/codeDiv"
+var baseURL = "https://www.saramin.co.kr/zf_user/search/recruit?search_area=main&search_done=y&search_optional_item=n&searchType=default_mysearch&searchword=%EA%B0%9C%EB%B0%9C%EC%9E%90&loc_mcd=101000&cat_cd=404"
 
-var errorRequestFailed = errors.New("Request failed")
-var errorNoneResp = errors.New("None Response")
-
-type reqResult struct {
-	url    string
-	status string
+type extractedJob struct {
+	id        string
+	company   string
+	title     string
+	date      string
+	condition string
+	link      string
 }
 
 func main() {
 
-	startTime := time.Now()
+	var allJobs []extractedJob
 
-	results := make(map[string]string)
-	c := make(chan reqResult)
+	ch := make(chan []extractedJob)
 
-	urls := []string{
-		"https://www.google.com",
-		"https://www.naver.com",
-		"https://www.amazon.com",
-		"https://www.stackoverflow.com",
-		"http://hiphople.co.kr",
-		"https://www.soundcloud.com",
-		"https://httpstat.us/404",
-		"https://httpstat.us/400",
-		"https://instagram.com",
-		"https://www.twitch.tv",
+	totalPages := getPages()
+
+	for i := 1; i <= totalPages; i++ {
+		go getPage(i, ch)
 	}
 
-	// goroutine : go에서 사용하는 동시성을위한 동작으로 Thread 와는 다르다
-	// 			   OS가아닌 Go runtime에서 cooperative scheduling하므로로, overhead나  context swtiching이 Thread에 비해서 적다.
-	// goroutine 은 main이 종료되기전까지만 살아있을 수 있다.
-	for _, url := range urls {
-		go hitURL(url, c)
+	for i := 1; i <= totalPages; i++ {
+		jobs := <-ch
+		allJobs = append(allJobs, jobs...)
 	}
 
-	// channel : 일종의 pipe
-	// result <- c  : channel 값을 다 받아오기전에는 main이 종료 되지않는다.
-	// channel 의 갯수가  초과해서는 안된다
-	for range urls {
-		result := <-c
-		results[result.url] = result.status
-	}
-
-	// map 출력
-	for url, status := range results {
-		fmt.Println(url, status)
-	}
-
-	elapsed := time.Since(startTime)
-	fmt.Println("elapsed", elapsed)
+	writeAllJobs(allJobs)
 
 }
 
-// channel send only
-// input variable의 chan 에 direction을 지정해주면, 채널 전달 방향을 지정할 수 있다.
-//  ex : func pingpong(ping <-chan stirng, pong chan<- string) {
-//			msg := <- ping
-//			pong <- msg
-//       }
-func hitURL(url string, c chan reqResult) {
-	fmt.Println("Checking URL : ", url)
-	resp, err := http.Get(url)
-	status := "OK"
-	if resp == nil {
-		status = "FAILED : " + "None Response"
-	} else if err != nil || resp.StatusCode >= 400 {
-		status = "FAILED : " + resp.Status
+func writeAllJobs(allJobs []extractedJob) {
+	file, err := os.Create("jobs.csv")
+	checkErr(err)
+
+	w := csv.NewWriter(file)
+	defer w.Flush()
+
+	headers := []string{"ID", "Company", "Title", "date", "Condition", "link"}
+
+	wErr := w.Write(headers)
+
+	checkErr(wErr)
+
+	for _, job := range allJobs {
+		jobSlice := []string{job.id, job.company, job.title, job.date, job.condition, job.link}
+		jwErr := w.Write(jobSlice)
+		checkErr(jwErr)
+
 	}
 
-	c <- reqResult{url: url, status: status}
 }
 
-func main_asis() {
+func getPage(page int, ch chan []extractedJob) {
+	var jobs []extractedJob
+	c := make(chan extractedJob)
 
-	/*******************************************************************************************/
-	/***********************************       Theory        ***********************************/
-	/*******************************************************************************************/
-	// day1.Day1()
-	// day2.Day2()
-	// day3.Day3()
+	pageURL := baseURL + "&recruitPage=" + strconv.Itoa(page)
 
-	/*******************************************************************************************/
-	/*********************************** mini project : bank ***********************************/
-	/*******************************************************************************************/
+	res, err := http.Get(pageURL)
+	checkErr(err)
+	checkCode(res)
 
-	fmt.Println("*********************************** mini project : bank ***********************************")
+	defer res.Body.Close()
 
-	/******* bank 01 ***************************************************************************
-	 * struct와 variable 의 public/private 한 사용
-	 * func으로 constructor 를 대신하기
-	 *******************************************************************************************/
-	account := accounts.NewAccount("kanye", "US") //  func를 통해서 construct 역활을 대신하였다.
-	// account.owner = "dean"
-	// account.balance = 1000
-	account.Address = "FR" // public 변수인 Address 는 변경이 가능하다
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	checkErr(err)
 
-	fmt.Println(account)
+	cardList := doc.Find(".content").Find(".item_recruit")
 
-	/******* bank 02 ***************************************************************************
-	 * method
-	 * func 에 receiver를 붙여주면, struct 의 method 가 된다
-	 *** value receiver   : struct를 복사한다 ex) func (t Test) MethodName () {}
-	 *** pointer receiver : struct를 참조한다 ex) func (t *Test) MethodName () {}
-	 *******************************************************************************************/
-	account.Deposit(10)
+	cardList.Each(func(i int, card *goquery.Selection) {
+		go extractJob(card, c)
+	})
 
-	fmt.Println(account)
-	fmt.Println(account.Balance())
-
-	/******* bank 03 ***************************************************************************
-	 * exception
-	 * exception 시 error 처리를 별도로 해줘야하며, exception 시에도 이후 동작을 멈추지않는다.
-	 *******************************************************************************************/
-	err := account.Withdraw(20)
-
-	if err != nil { // nil 은 null 로 생각 할 수 있다.
-		// log.Fatalln(err)
-		fmt.Println(err)
+	for i := 0; i < cardList.Length(); i++ {
+		job := <-c
+		jobs = append(jobs, job)
 	}
 
-	fmt.Println(account.Balance())
+	ch <- jobs
+}
 
-	/*******************************************************************************************/
-	/********************************* mini project : dictionary *******************************/
-	/*******************************************************************************************/
+func extractJob(card *goquery.Selection, c chan extractedJob) {
+	jobId, _ := card.Attr("value")
+	corpName, _ := card.Find(".corp_name a").Attr("title")
+	jobTitle := cleanString(card.Find(".job_tit").Text())
+	jobDate := cleanString(card.Find(".job_date").Text())
+	jobCondition := cleanString(card.Find(".job_condition").Text())
+	jobLink, _ := card.Find(".job_tit a").Attr("href")
+	jobLink = "https://www.saramin.co.kr" + jobLink
 
-	fmt.Println("********************************* mini project : dictionary *******************************")
-
-	dictionary := mydict.Dictionary{"first": "firstWord"}
-
-	word := "secound"
-	def := "secoundWord"
-
-	fmt.Println("-- Add")
-
-	err1 := dictionary.Add(word, def)
-
-	if err1 != nil {
-		fmt.Println(err1)
+	c <- extractedJob{
+		id:        jobId,
+		company:   corpName,
+		title:     jobTitle,
+		date:      jobDate,
+		condition: jobCondition,
+		link:      jobLink,
 	}
+}
 
-	fmt.Println("-- Search")
-	// definition, err2 := dictionary.Search("first")
-	definition, err2 := dictionary.Search("secound")
-	// definition, err2 := dictionary.Search("third")
+func getPages() int {
+	pages := 0
+	res, err := http.Get(baseURL)
+	checkErr(err)
+	checkCode(res)
 
-	if err2 != nil {
-		fmt.Println(err2)
-	} else {
-		fmt.Println(definition)
+	defer res.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	checkErr(err)
+
+	p := doc.Find(".pagination")
+	pages = p.Find("a").Length()
+
+	return pages
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatalln(err)
 	}
+}
 
-	fmt.Println("-- Update")
-	err3 := dictionary.Update("secound", "New SecoundWord")
-
-	if err3 != nil {
-		fmt.Println(err3)
+func checkCode(res *http.Response) {
+	if res.StatusCode != 200 {
+		log.Fatalln("Request failed with status :", res.Status)
 	}
+}
 
-	fmt.Println("-- Search")
-	definition, err2 = dictionary.Search("secound")
-
-	if err2 != nil {
-		fmt.Println(err2)
-	} else {
-		fmt.Println(definition)
-	}
-
-	fmt.Println("-- Delete")
-
-	err4 := dictionary.Delete("secound")
-
-	if err4 != nil {
-		fmt.Println(err4)
-	}
-
-	fmt.Println("-- Search")
-	definition, err2 = dictionary.Search("secoucnd")
-
-	if err2 != nil {
-		fmt.Println(err2)
-	} else {
-		fmt.Println(definition)
-	}
-
+func cleanString(text string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
 }
