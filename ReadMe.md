@@ -41,3 +41,9 @@
 ## JOBScrapper (2021.03.22)
 
 ### goquery / channel review
+
+## Echo Framework (2021.03.23)
+
+## scrapper 를 main에서 분리
+## Echo 로 scrapper 를 위한 웹서버 기동 / scrape 후 euc-kr 로 인코딩 변환하여 파일 다운로드
+
